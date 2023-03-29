@@ -49,7 +49,11 @@ class Shampoo(Optimizer):
         weight_decay: float = 0.0,
         epsilon: float = 1e-4,
         update_freq: int = 1,
+        write_hessian: bool = True,
+        hessian_file: str = 'hessian.txt'
     ):
+        self.write_hessian = write_hessian
+        self.hessian_file = hessian_file
 
         if lr <= 0.0:
             raise ValueError('Invalid learning rate: {}'.format(lr))
@@ -118,7 +122,7 @@ class Shampoo(Optimizer):
                 for dim_id, dim in enumerate(grad.size()):
                     precond = state['precond_{}'.format(dim_id)]
                     inv_precond = state['inv_precond_{}'.format(dim_id)]
-
+                    
                     # mat_{dim_id}(grad)
                     grad = grad.transpose_(0, dim_id).contiguous()
                     transposed_size = grad.size()
@@ -134,12 +138,27 @@ class Shampoo(Optimizer):
                         grad = grad_t @ inv_precond
                         # grad: (-1, last_dim)
                         grad = grad.view(original_size)
+                        if self.write_hessian:
+                            with open('hessian.txt','a+') as f:
+                                f.write('Step Number: {}'.format(str(state['step'])))
+                                f.write(' Right:' + str(inv_precond.numpy().tolist()))
+                                f.write('\n')
                     else:
                         # if not final
                         grad = inv_precond @ grad
                         # grad (dim, -1)
                         grad = grad.view(transposed_size)
-
+                        if self.write_hessian:
+                            with open('hessian.txt','a+') as f:
+                                f.write('Step Number: {}'.format(str(state['step'])))
+                                f.write(' Left:' + str(inv_precond.numpy().tolist()))
+                                f.write('\n')
+                            
+                if self.write_hessian:
+                    with open('hessian.txt','a+') as f:
+                        f.write('Step Number: {}'.format(str(state['step'])))
+                        f.write(' Final Search Vector:' + str(grad.numpy().tolist()))
+                        f.write('\n')
                 state['step'] += 1
                 state['momentum_buffer'] = grad
                 p.data.add_(grad, alpha=-group['lr'])
