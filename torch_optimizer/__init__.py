@@ -45,6 +45,8 @@ from .shampoo import Shampoo
 from .swats import SWATS
 from .yogi import Yogi
 
+
+from .newtons_method import Newtons_Method
 __all__ = (
     'A2GradExp',
     'A2GradInc',
