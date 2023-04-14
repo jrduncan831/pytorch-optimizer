@@ -49,7 +49,7 @@ class Shampoo(Optimizer):
         weight_decay: float = 0.0,
         epsilon: float = 1e-4,
         update_freq: int = 1,
-        write_hessian: bool = True,
+        write_hessian: bool = False,
         hessian_file: str = 'hessian.txt'
     ):
         self.write_hessian = write_hessian
