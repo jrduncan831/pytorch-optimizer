@@ -14,6 +14,22 @@ def _matrix_power(matrix: torch.Tensor, power: float) -> torch.Tensor:
 def _hessian_linear_systems(data: torch.Tensor) -> torch.Tensor:
     return 4* (data.t() @ data) / (data.size()[0])
 
+def eval_hessian(loss_grad, model):
+    cnt = 0
+    for g in loss_grad:
+        g_vector = g.contiguous().view(-1) if cnt == 0 else torch.cat([g_vector, g.contiguous().view(-1)])
+        cnt = 1
+    l = g_vector.size(0)
+    hessian = torch.zeros(l, l)
+    for idx in range(l):
+        grad2rd = torch.autograd.grad(g_vector[idx], model.parameters(), create_graph=True)
+        cnt = 0
+        for g in grad2rd:
+            g2 = g.contiguous().view(-1) if cnt == 0 else torch.cat([g2, g.contiguous().view(-1)])
+            cnt = 1
+        hessian[idx] = g2
+    return 2*hessian.cpu().data
+
 class Newtons_Method(Optimizer):
     r"""Implements Newtons Method Optimizer. This implementation is meant for smaller systems. 
     Hessian matrix intractable in high dimensions
@@ -77,7 +93,7 @@ class Newtons_Method(Optimizer):
         )
         super(Newtons_Method, self).__init__(params, defaults)
 
-    def step(self, weights, closure: OptLossClosure = None) -> OptFloat:
+    def step(self, weights, model, loss_grad, closure: OptLossClosure = None) -> OptFloat:
         """Performs a single optimization step.
 
         Arguments:
@@ -117,6 +133,8 @@ class Newtons_Method(Optimizer):
                 # See Algorithm 2 for detail
 
                 precond = _hessian_linear_systems((weights))  #state['precond']
+                print('hessian linear:',precond)
+                precond = eval_hessian(loss_grad,model)
                 print('hessian:',precond) 
            #     precond.add_( _hessian_linear_systems((p)) ) # WORKING HERE FIX!!!!!
                 inv_precond = torch.linalg.inv(precond) #_matrix_power(precond, -1)
